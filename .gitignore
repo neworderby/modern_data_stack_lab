@@ -1,0 +1,72 @@
+# === Виртуальные окружения ===
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.virtualenv/
+
+# === Переменные окружения / секреты ===
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+*.env
+secrets.json
+secrets.yaml
+secrets.yml
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# === Тесты и линтеры ===
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# === IDE и редакторы ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# === Jupyter Notebook ===
+.ipynb_checkpoints
+
+# === Логи и временные файлы ===
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
