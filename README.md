@@ -62,7 +62,7 @@ DWH_PASSWORD="postgres"
 
 # === NocoDB ===
 NOCODB_ADMIN_EMAIL="admin@example.com"
-NOCODB_ADMIN_PASSWORD="admin"
+NOCODB_ADMIN_PASSWORD="admin123"
 ```
 
 #### Генерация FERNET_KEY
@@ -80,9 +80,8 @@ python3 -c "import secrets, base64; print(base64.urlsafe_b64encode(secrets.token
 Создайте файл `connections.json` в корне проекта. Этот файл содержит подключения Airflow, которые **автоматически импортируются** при первом запуске.
 
 ```json
-[
-  {
-    "id": "postgres_dwh",
+{
+  "postgres_dwh": {
     "conn_type": "postgres",
     "host": "postgres-dwh",
     "port": 5432,
@@ -91,8 +90,7 @@ python3 -c "import secrets, base64; print(base64.urlsafe_b64encode(secrets.token
     "password": "postgres",
     "description": "Connection to DWH Postgres (postgres-dwh)"
   },
-  {
-    "id": "airflow_db",
+  "airflow_db": {
     "conn_type": "postgres",
     "host": "postgres",
     "port": 5432,
@@ -101,23 +99,21 @@ python3 -c "import secrets, base64; print(base64.urlsafe_b64encode(secrets.token
     "password": "airflow",
     "description": "Airflow metadata database"
   },
-  {
-    "id": "nocodb_api",
+  "nocodb_api": {
     "conn_type": "http",
     "host": "noco-db",
     "port": 8080,
     "login": "admin@example.com",
-    "password": "admin",
+    "password": "admin123",
     "description": "NocoDB API connection"
   },
-  {
-    "id": "redis_default",
+  "redis_default": {
     "conn_type": "redis",
     "host": "redis",
     "port": 6379,
     "description": "Redis connection"
   }
-]
+}
 ```
 
 #### Как настроить подключения под себя
@@ -175,7 +171,7 @@ docker compose ps
 | Сервис | URL | Логин | Пароль |
 |---|---|---|---|
 | Airflow UI | http://localhost:8080 | `admin` | `airflow` |
-| NocoDB | http://localhost:8081 | `admin@example.com` | `admin` |
+| NocoDB | http://localhost:8081 | `admin@example.com` | `admin123` |
 | DWH Postgres | localhost:5432 | `admin` | `postgres` |
 | Airflow DB | localhost:5433 | `airflow` | `airflow` |
 
@@ -230,6 +226,70 @@ psql -h localhost -p 5432 -U admin -d dwh
 
 # Airflow CLI (debug-профиль)
 docker compose run --rm airflow-cli
+```
+
+## Подключение к базам данных
+
+### Параметры подключения
+
+В проекте две PostgreSQL-базы данных:
+
+#### 1. DWH Postgres (хранилище данных)
+
+| Параметр | Значение (извне) | Значение (из контейнеров) |
+|---|---|---|
+| Host | `localhost` | `postgres-dwh` |
+| Port | `5432` | `5432` |
+| Database | `dwh` | `dwh` |
+| User | `admin` | `admin` |
+| Password | `postgres` | `postgres` |
+
+#### 2. Airflow DB (метаданные Airflow)
+
+| Параметр | Значение (извне) | Значение (из контейнеров) |
+|---|---|---|
+| Host | `localhost` | `postgres` |
+| Port | `5433` | `5432` |
+| Database | `airflow` | `airflow` |
+| User | `airflow` | `airflow` |
+| Password | `airflow` | `airflow` |
+
+### Подключение через DBeaver
+
+1. Откройте [DBeaver](https://dbeaver.io/download/)
+2. Нажмите **New Connection** (иконка розетки с плюсиком)
+3. Выберите **PostgreSQL**
+4. Заполните параметры:
+
+**Для DWH Postgres:**
+- **Host:** `localhost`
+- **Port:** `5432`
+- **Database:** `dwh`
+- **Username:** `admin`
+- **Password:** `postgres`
+
+**Для Airflow DB:**
+- **Host:** `localhost`
+- **Port:** `5433`
+- **Database:** `airflow`
+- **Username:** `airflow`
+- **Password:** `airflow`
+
+5. Нажмите **Test Connection** — должно появиться "Connected"
+6. Нажмите **Finish**
+
+> Если DBeaver просит скачать драйвер — согласитесь (скачается автоматически).
+
+### Подключение через psql
+
+```bash
+# DWH Postgres
+psql -h localhost -p 5432 -U admin -d dwh
+# пароль: postgres
+
+# Airflow DB
+psql -h localhost -p 5433 -U airflow -d airflow
+# пароль: airflow
 ```
 
 ## Безопасность
