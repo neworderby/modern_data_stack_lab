@@ -35,7 +35,7 @@ DWH-проект на базе **dbt**, **Apache Airflow**, **PostgreSQL** и **
 ### Шаг 1. Клонирование репозитория
 
 ```bash
-git clone <url-репозитория>
+git clone https://github.com/neworderby/modern_data_stack_lab.git
 cd modern_data_stack_lab
 ```
 
