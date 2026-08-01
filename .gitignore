@@ -7,7 +7,7 @@ env.bak/
 venv.bak/
 .virtualenv/
 
-# === Переменные окружения / секреты ===
+# === Переменные окружения / секреты / прочие файлы===
 .env
 .env.*
 !.env.example
@@ -19,6 +19,8 @@ secrets.yaml
 secrets.yml
 connections.json
 ROADMAP_PROJECT_B.md
+/dags/load_csv_raw_layer.py
+/raw/orders.csv
 
 # === Python ===
 __pycache__/
