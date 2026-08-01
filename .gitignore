@@ -18,6 +18,7 @@ secrets.json
 secrets.yaml
 secrets.yml
 connections.json
+ROADMAP_PROJECT_B.md
 
 # === Python ===
 __pycache__/
