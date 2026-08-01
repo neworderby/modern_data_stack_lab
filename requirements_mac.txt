@@ -1,0 +1,1 @@
+pymssql @ git+https://github.com/marcwimmer/pymssql@b1ca7495bd2d431ba02a58626527567cd20aa71c

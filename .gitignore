@@ -17,6 +17,7 @@ venv.bak/
 secrets.json
 secrets.yaml
 secrets.yml
+connections.json
 
 # === Python ===
 __pycache__/
