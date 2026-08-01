@@ -56,12 +56,10 @@ ARG libdir=/usr/lib/x86_64-linux-gnu
 
 COPY --from=build ${extdir}/tds_fdw* ${extdir}/
 COPY --from=build ${extlibdir}/tds_fdw.so ${extlibdir}/
-COPY --from=build ${libdir}/libsybdb.so.5.1.0 ${libdir}/
 COPY --from=build ${extdir}/mysql_fdw* ${extdir}/
 COPY --from=build ${extlibdir}/mysql_fdw.so ${extlibdir}/
-COPY --from=build ${libdir}/libmysqlclient.so ${libdir}/libmysqlclient_r.so ${libdir}/
-COPY --from=build ${libdir}/libmariadb3/ ${libdir}/libmariadb3/
 
-RUN cd ${libdir} && \
-    ln -sf libsybdb.so.5.1.0 libsybdb.so.5 && \
-    ln -sf libsybdb.so.5 libsybdb.so;
+# Устанавливаем runtime-зависимости для FDW
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libsybdb5 freetds-common libmariadb3 && \
+    rm -rf /var/lib/apt/lists/*

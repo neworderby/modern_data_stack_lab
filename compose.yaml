@@ -221,13 +221,9 @@ services:
         mkdir -p /sources/logs /sources/dags /sources/plugins
         chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
         exec /entrypoint bash -c '
-          airflow db migrate &&
-          airflow connections import /opt/airflow/connections.json --skip-import-errors &&
-          airflow users create
-            --username "${_AIRFLOW_WWW_USER_USERNAME:-admin}"
-            --password "${_AIRFLOW_WWW_USER_PASSWORD:-admin}"
-            --firstname "Admin" --lastname "User"
-            --role "Admin" --email "admin@example.com" || true &&
+          airflow db migrate;
+          airflow connections import /opt/airflow/connections.json || true;
+          airflow users create --username "${_AIRFLOW_WWW_USER_USERNAME:-admin}" --password "${_AIRFLOW_WWW_USER_PASSWORD:-airflow}" --firstname "Admin" --lastname "User" --role "Admin" --email "admin@example.com" || true;
           airflow version
         '
     environment:
@@ -238,6 +234,7 @@ services:
     user: "0:0"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
+      - ./connections.json:/opt/airflow/connections.json
     networks:
       - dwh_network
 
