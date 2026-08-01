@@ -1,5 +1,5 @@
 Modern data stack tools for Data Warehouse:
-DBT, Airflow, DuckDB, Airbyte, DLT, Docker, Postgres
+DBT, Airflow, Dagster, DuckDB, Airbyte, DLT, Docker, Postgres
 
 mkdir modern_data_stack
 cd modern_data_stack
