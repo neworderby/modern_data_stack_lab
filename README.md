@@ -144,6 +144,24 @@ docker compose up -d --build
 2. Импортирует подключения из `connections.json`
 3. Создаст admin-пользователя
 
+> **Важно:** Виртуальное окружение Python на хосте (`.venv`) **не требуется** для запуска контейнеров. Все зависимости (dlt, dbt, duckdb, pandas и др.) уже установлены внутри Docker-образа через `requirements.txt`. Достаточно одной команды `docker compose up -d --build`.
+
+### Локальная разработка (опционально)
+
+Если вы хотите запускать dbt или Python-скрипты **на хосте** (например, для быстрой разработки dbt-моделей без пересборки контейнера), создайте виртуальное окружение:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install dbt-core dbt-postgres
+```
+
+После этого можно работать с DWH через localhost:
+```bash
+cd dbt_dwh
+dbt run --target dev       # dbt → postgres-dwh (localhost:5432)
+```
+
 ### Шаг 5. Проверка
 
 После запуска убедитесь, что все сервисы здоровы:
