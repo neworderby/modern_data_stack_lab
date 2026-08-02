@@ -2,7 +2,7 @@ FROM apache/airflow:2.10.4
 
 USER root
 RUN apt-get update && \
-    apt-get install -y libpq-dev gcc git freetds-dev libkrb5-dev && \
+    apt-get install -y libpq-dev gcc git freetds-dev libkrb5-dev unixodbc-dev && \
     rm -rf /var/lib/apt/lists/*
 
 USER airflow

@@ -152,6 +152,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+> `requirements.txt` содержит только пакеты, которые ставятся из коробки без системных библиотек. Для работы с MS SQL (`pyodbc`, `pymssql`) см. `requirements_mac.txt` / `requirements_win.txt` — они требуют установки `unixodbc` и `freetds` через `brew install unixodbc freetds` (macOS).
+
 После этого можно работать с DWH через localhost:
 ```bash
 cd dbt_dwh
@@ -298,3 +300,9 @@ psql -h localhost -p 5433 -U airflow -d airflow
 - Все креды в `compose.yaml` ссылаются на переменные из `.env` через `${...}`
 - Dockerfile'ы не содержат кредов
 - Fernet-ключ шифрует подключения в metadata-БД Airflow
+
+
+инициализацяи проекта дбт
+pip uninstall dbt-fusion dbt-core dbt-postgres -y
+pip install dbt-core==1.9.6 dbt-postgres==1.9.0
+dbt init dbt_dwh
