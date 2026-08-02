@@ -149,7 +149,7 @@ docker compose up -d --build
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
-pip install dbt-core dbt-postgres
+pip install -r requirements.txt
 ```
 
 После этого можно работать с DWH через localhost:
