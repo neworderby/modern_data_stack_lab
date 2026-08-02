@@ -1,0 +1,12 @@
+dbt_dwh:
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DWH_HOST', 'localhost') }}"
+      port: "{{ env_var('DWH_PORT', '5432') | int }}"
+      database: "{{ env_var('DWH_DB_NAME', 'dwh') }}"
+      schema: "{{ env_var('DWH_SCHEMA', 'dds') }}"
+      user: "{{ env_var('DWH_USER') }}"
+      password: "{{ env_var('DWH_PASSWORD') }}"
+      threads: 4
+  target: dev

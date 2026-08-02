@@ -154,11 +154,114 @@ pip install -r requirements.txt
 
 > `requirements.txt` содержит только пакеты, которые ставятся из коробки без системных библиотек. Для работы с MS SQL (`pyodbc`, `pymssql`) см. `requirements_mac.txt` / `requirements_win.txt` — они требуют установки `unixodbc` и `freetds` через `brew install unixodbc freetds` (macOS).
 
-После этого можно работать с DWH через localhost:
+#### Настройка dbt-проекта
+
+После установки зависимостей инициализируйте dbt-проект:
+
+```bash
+dbt init dbt_dwh --profiles-dir ./dbt_dwh
+```
+
+На вопросы интерактивного мастера ответьте:
+
+| Параметр | Значение |
+|---|---|
+| Adapter | `postgres` |
+| Host | `localhost` |
+| Port | `5432` |
+| Database | `dwh` |
+| Username | `admin` |
+| Password | `postgres` |
+| Schema | `dds` |
+| Threads | `4` |
+
+dbt создаст:
+- Папку `dbt_dwh/` с базовой структурой проекта (`dbt_project.yml`, `models/`, `macros/`, ...)
+- Файл `dbt_dwh/profiles.yml` с настройками подключения
+
+> **Важно:** `profiles.yml` хранится **внутри проекта** (`dbt_dwh/profiles.yml`), а не в `~/.dbt/`. Это делает проект самодостаточным. Переменная `DBT_PROFILES_DIR` уже настроена в `.envrc` через direnv.
+
+#### Подключение через переменные окружения
+
+Вместо хардкода кредов в `profiles.yml` используются переменные окружения из `.env`. Для этого в `profiles.yml` применяется функция `env_var()`:
+
+```yaml
+dbt_dwh:
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DWH_HOST', 'localhost') }}"
+      port: "{{ env_var('DWH_PORT', '5432') | int }}"
+      database: "{{ env_var('DWH_DB_NAME', 'dwh') }}"
+      schema: "{{ env_var('DWH_SCHEMA', 'dds') }}"
+      user: "{{ env_var('DWH_USER') }}"
+      password: "{{ env_var('DWH_PASSWORD') }}"
+      threads: 4
+  target: dev
+```
+
+Соответствие переменных:
+
+| Переменная в `.env` | Значение по умолчанию | Назначение |
+|---|---|---|
+| `DWH_USER` | `admin` | Пользователь DWH Postgres |
+| `DWH_PASSWORD` | `postgres` | Пароль DWH Postgres |
+| `DWH_DB_NAME` | `dwh` | Имя базы данных |
+| `DWH_HOST` | `localhost` | Хост (для локальной разработки) |
+| `DWH_PORT` | `5432` | Порт |
+| `DWH_SCHEMA` | `dds` | Схема по умолчанию |
+
+Переменные загружаются автоматически через [direnv](https://direnv.net/) (файл `.envrc` → `dotenv`). Если direnv не установлен, экспортируйте переменные вручную:
+
+```bash
+export $(grep -v '^#' .env | xargs)
+```
+
+#### Проверка подключения (dbt debug)
+
+Перейдите в папку проекта и проверьте, что dbt корректно подключается к DWH:
+
 ```bash
 cd dbt_dwh
-dbt run --target dev       # dbt → postgres-dwh (localhost:5432)
+dbt debug
 ```
+
+В выводе должно быть:
+```
+Connection test: [OK connection ok]
+All checks passed!
+```
+
+Если dbt не находит `profiles.yml` — проверьте, что переменная `DBT_PROFILES_DIR` указывает на папку `dbt_dwh/`:
+
+```bash
+echo $DBT_PROFILES_DIR
+# должно быть: /Users/<user>/VSCode/modern_data_stack_lab/dbt_dwh
+```
+
+Либо укажите путь явно:
+
+```bash
+dbt debug --profiles-dir .
+```
+
+#### Запуск dbt-моделей
+
+```bash
+cd dbt_dwh
+
+# Запуск всех моделей
+dbt run --target dev
+
+# Запуск тестов
+dbt test --target dev
+
+# Генерация документации
+dbt docs generate --target dev
+dbt docs serve --target dev
+```
+
+> **Важно:** все команды dbt выполняются **из папки `dbt_dwh/`**, где находятся `dbt_project.yml` и `profiles.yml`.
 
 ### Шаг 5. Проверка
 
@@ -203,6 +306,12 @@ modern_data_stack_lab/
 │   ├── airflow.dockerfile
 │   └── postgres.dockerfile
 ├── raw/                  # Исходные данные (CSV, файлы)
+├── dbt_dwh/              # dbt-проект (локальная разработка)
+│   ├── dbt_project.yml
+│   ├── profiles.yml      # настройки подключения dbt
+│   ├── models/
+│   ├── macros/
+│   └── ...
 ├── dags/                 # DAG-файлы Airflow
 ├── sql/                  # SQL-скрипты инициализации БД
 │   ├── 01_init_schemas.sql
@@ -323,9 +432,3 @@ psql -h localhost -p 5432 -U admin -d dwh -f sql/01_init_schemas.sql
 - Все креды в `compose.yaml` ссылаются на переменные из `.env` через `${...}`
 - Dockerfile'ы не содержат кредов
 - Fernet-ключ шифрует подключения в metadata-БД Airflow
-
-
-инициализацяи проекта дбт
-pip uninstall dbt-fusion dbt-core dbt-postgres -y
-pip install dbt-core==1.9.6 dbt-postgres==1.9.0
-dbt init dbt_dwh
