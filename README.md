@@ -202,7 +202,11 @@ modern_data_stack_lab/
 ├── docker/
 │   ├── airflow.dockerfile
 │   └── postgres.dockerfile
+├── raw/                  # Исходные данные (CSV, файлы)
 ├── dags/                 # DAG-файлы Airflow
+├── sql/                  # SQL-скрипты инициализации БД
+│   ├── 01_init_schemas.sql
+│   └── README.md         # Описание схем DWH
 ├── logs/                 # Логи Airflow
 ├── config/               # Конфигурация Airflow
 └── plugins/              # Кастомные плагины Airflow
@@ -293,6 +297,25 @@ psql -h localhost -p 5432 -U admin -d dwh
 psql -h localhost -p 5433 -U airflow -d airflow
 # пароль: airflow
 ```
+
+### Инициализация схем DWH
+
+После запуска контейнеров выполните инициализацию схем:
+
+```bash
+psql -h localhost -p 5432 -U admin -d dwh -f sql/01_init_schemas.sql
+```
+
+Будут созданы схемы:
+
+| Схема | Назначение |
+|---|---|
+| `raw` | Сырые данные — загрузка через dlt |
+| `stage` | Очищенные данные — dbt staging |
+| `dds` | Размерности и факты — dbt dimensional |
+| `mart` | Витрины данных — dbt marts |
+
+Подробнее — в `sql/README.md`.
 
 ## Безопасность
 
