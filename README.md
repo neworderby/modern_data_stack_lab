@@ -260,7 +260,7 @@ dbt test --target dev
 dbt docs generate --target dev
 dbt docs serve --target dev
 
-## Основные команды dbt
+# Основные команды dbt
 
 - `dbt debug` - проверка подключения к хранилищу данных (проверка профиля)
 - `dbt parse` - парсинг файлов проекта (проверка корректности)
