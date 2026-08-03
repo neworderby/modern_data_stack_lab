@@ -105,4 +105,4 @@ zipp==3.22.0
 dbt-mysql @ git+https://github.com/stevetracvc/dbt-mysql@a38280b216a91f31c6dd81f1cf0c2421265c72cd#egg=dbt-mysql
 
 # dlt (data loading tool)
-dlt[duckdb,postgres,parquet]==1.29.1
+dlt[duckdb,postgres,parquet,filesystem]==1.29.1
