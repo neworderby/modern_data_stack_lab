@@ -22,6 +22,8 @@ ROADMAP_PROJECT_B.md
 NOTES.md
 /dags/load_csv_raw_layer.py
 /raw/orders.csv
+/testing.ipynb
+/NOTES.ipynb
 
 # === Python ===
 __pycache__/
