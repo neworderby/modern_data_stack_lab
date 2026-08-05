@@ -24,6 +24,8 @@ NOTES.md
 /raw/orders.csv
 /testing.ipynb
 /NOTES.ipynb
+/PYTHON_TRACK.md
+target/*
 
 # === Python ===
 __pycache__/
