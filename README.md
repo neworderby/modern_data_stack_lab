@@ -223,6 +223,7 @@ export $(grep -v '^#' .env | xargs)
 
 ```bash
 cd dbt_dwh
+direnv allow .
 dbt debug
 ```
 

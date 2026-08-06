@@ -18,14 +18,10 @@ secrets.json
 secrets.yaml
 secrets.yml
 connections.json
-ROADMAP_PROJECT_B.md
-NOTES.md
 /dags/load_csv_raw_layer.py
 /raw/orders.csv
-/testing.ipynb
-/NOTES.ipynb
-/PYTHON_TRACK.md
 target/*
+track/*
 
 # === Python ===
 __pycache__/
