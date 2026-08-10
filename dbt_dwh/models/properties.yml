@@ -16,3 +16,25 @@ models:
     description: "Scooter trips"
     config:
       materialized: view
+  - name: "trips_stat"
+    description: "Overall trips statistics"
+    config:
+      materialized: table
+  - name: "trips_stat_daily"
+    description: "Overall trips statistics per day"
+    config:
+      materialized: table
+      indexes:
+        - columns: ["date"]
+  - name: "trips_age_daily"
+    description: "Daily trips statistics by user age"
+    config:
+      materialized: table
+  - name: "trips_age_daily_stat"
+    description: "Aggregation of daily trips statistics by user age"
+    config:
+      materialized: table
+  - name: "trips_age_daily_stat_daily"
+    description: "Aggregation of daily trips statistics by user age per day"
+    config:
+      materialized: table
