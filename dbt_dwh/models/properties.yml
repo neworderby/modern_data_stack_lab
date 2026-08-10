@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: "raw"
+    description: "Raw data provided by scooters service"
+    loader: "s3"
+    tables:
+      - name: "trips"
+        description: "Scooter trips"
+
+      - name: "users"
+        description: "Users of scooter service"
+
+models:
+  - name: "trips_prep"
+    description: "Scooter trips"
+    config:
+      materialized: view
