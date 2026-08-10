@@ -1,5 +1,7 @@
 ARG base_tag=17.2
 ARG pg_version=17
+# Финальный образ: postgres + предустановленный PostGIS
+ARG postgis_tag=17-3.4
 
 # build stage
 FROM docker.io/postgres:${base_tag} AS build
@@ -47,7 +49,7 @@ RUN mkdir -p ${SOURCE_FILES} && \
     make USE_PGXS=1 install
 
 # final stage
-FROM docker.io/postgres:${base_tag}
+FROM docker.io/postgis/postgis:${postgis_tag}
 
 ARG pg_version
 ARG extdir=/usr/share/postgresql/${pg_version}/extension

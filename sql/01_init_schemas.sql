@@ -28,3 +28,6 @@ CREATE EXTENSION IF NOT EXISTS tds_fdw WITH SCHEMA raw;
 
 -- FDW для MySQL
 CREATE EXTENSION IF NOT EXISTS mysql_fdw WITH SCHEMA raw;
+
+-- Активируйте PostGIS в базе PostgreSQL, если еще этого не делали:
+CREATE EXTENSION IF NOT EXISTS postgis SCHEMA public;
