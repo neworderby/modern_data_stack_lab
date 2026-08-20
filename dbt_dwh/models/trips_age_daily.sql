@@ -1,3 +1,4 @@
+/*
 with
 date_age_cte as (
     select
@@ -16,6 +17,18 @@ select
     sum(price_rub) as revenue_rub
 from
     date_age_cte
+group by
+    1,
+    2
+*/
+
+select
+    "date",
+    age,
+    count(*) as trips,
+    sum(price_rub) as revenue_rub
+from
+    {{ ref("trips_users") }}
 group by
     1,
     2
