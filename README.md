@@ -446,3 +446,19 @@ psql -h localhost -p 5432 -U admin -d dwh -f sql/01_init_schemas.sql
 - Все креды в `compose.yaml` ссылаются на переменные из `.env` через `${...}`
 - Dockerfile'ы не содержат кредов
 - Fernet-ключ шифрует подключения в metadata-БД Airflow
+
+## Полезные ссылки
+
+- [Техники модульного моделирования данных](https://www.getdbt.com/blog/modular-data-modeling-techniques) — статья dbt Labs о том, как дробить монолитный SQL на читаемые слои (staging / intermediate / marts), именование моделей и отладка «modelneck».
+- [Sources в dbt](https://docs.getdbt.com/docs/build/sources?version=2) — официальная документация по объявлению источников (`sources`), функции `{{ source() }}`, тестам и проверке freshness сырых таблиц.
+- [Postgres-конфиги dbt](https://docs.getdbt.com/reference/resource-configs/postgres-configs?version=2) — справочник по адаптеру Postgres: incremental-стратегии (`append`, `merge`, `delete+insert`, microbatch), индексы, unlogged-таблицы и materialized views.
+- [Справочник `dbt_project.yml`](https://docs.getdbt.com/reference/dbt_project.yml?version=2) — полное описание главного конфиг-файла проекта: пути, материалзации, vars, quoting, hooks и префикс `+`.
+- [Как структурировать dbt-проект](https://docs.getdbt.com/best-practices/how-we-structure/1-guide-overview?version=2) — best practices dbt Labs по структуре папок и слоям моделей (staging → intermediate → marts) на примере Jaffle Shop.
+- [Как стилизовать dbt-проекты](https://docs.getdbt.com/best-practices/how-we-style/0-how-we-style-our-dbt-projects?version=2) — руководство по code style: ясность, единообразие, whitespace, naming и автоматизация через форматтеры/линтеры.
+- [Telegram-чат dbt & modern data stack](https://t.me/dbt_users) — русско-английское сообщество пользователей dbt (вопросы, обсуждения, вакансии с тегом `#job`).
+- [Обзор References в документации dbt](https://docs.getdbt.com/reference/references-overview?version=2) — точка входа в справочники: конфиги проекта и адаптеров, команды, Jinja, артефакты и Semantic Layer.
+- [dbt Community Forum (Discourse)](http://discourse.getdbt.com/) — форум сообщества: помощь по dbt, show & tell, обсуждения практик analytics engineering.
+- [Incremental models (документация)](https://docs.getdbt.com/docs/build/incremental-models?version=2) — как настраивать инкрементальные модели: `is_incremental()`, `unique_key`, `--full-refresh`, `on_schema_change` и фильтры новых строк.
+- [Incremental models in-depth (best practices)](https://docs.getdbt.com/best-practices/materializations/4-incremental-models?version=2) — подробный разбор инкрементальных материалзаций: cutoff по `updated_at`, lookback для late-arriving facts и когда делать full refresh.
+- [Understanding dbt Incremental Strategies (Indicium)](https://medium.com/indiciumtech/understanding-dbt-incremental-strategies-part-1-2-22bd97c7eeb5) — статья Bruno Souza de Lima: сравнение стратегий `append`, `merge`, `delete+insert`, `insert_overwrite` и когда лучше остаться на full refresh.
+- [Почему мы перешли на микробатчи dbt (Павел Рословец)](https://kinescope.io/vQEduLgJgyeqDzi9orZsTH) — видео (~43 мин) про стратегию microbatch на практике: упрощение больших таблиц, ограничения из коробки и доработка через макросы вместо `is_incremental`.
