@@ -451,6 +451,7 @@ psql -h localhost -p 5432 -U admin -d dwh -f sql/01_init_schemas.sql
 
 - [Техники модульного моделирования данных](https://www.getdbt.com/blog/modular-data-modeling-techniques) — статья dbt Labs о том, как дробить монолитный SQL на читаемые слои (staging / intermediate / marts), именование моделей и отладка «modelneck».
 - [Sources в dbt](https://docs.getdbt.com/docs/build/sources?version=2) — официальная документация по объявлению источников (`sources`), функции `{{ source() }}`, тестам и проверке freshness сырых таблиц.
+- [Seeds в dbt](https://docs.getdbt.com/docs/build/seeds) — загрузка CSV из папки `seeds/` в DWH через `dbt seed`: справочники и маппинги под `ref()`, когда seeds уместны (и когда нет), тесты/документация и `--full-refresh` при смене колонок.
 - [Postgres-конфиги dbt](https://docs.getdbt.com/reference/resource-configs/postgres-configs?version=2) — справочник по адаптеру Postgres: incremental-стратегии (`append`, `merge`, `delete+insert`, microbatch), индексы, unlogged-таблицы и materialized views.
 - [Справочник `dbt_project.yml`](https://docs.getdbt.com/reference/dbt_project.yml?version=2) — полное описание главного конфиг-файла проекта: пути, материалзации, vars, quoting, hooks и префикс `+`.
 - [Как структурировать dbt-проект](https://docs.getdbt.com/best-practices/how-we-structure/1-guide-overview?version=2) — best practices dbt Labs по структуре папок и слоям моделей (staging → intermediate → marts) на примере Jaffle Shop.
