@@ -68,3 +68,7 @@ models:
     config:
       materialized: "incremental"
       incremental_strategy: "append"
+  - name: "companies"
+    description: "Scooter satistics by company"
+  - name: "companies_trips"
+    description: "Trip satistics by company"  
