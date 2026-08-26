@@ -13,7 +13,8 @@ select t1.id,
        t1.is_free,
        t1.date,
        t2.sex,
-       extract(year from t1.started_at) - extract(year from t2.birth_date) as age
+       extract(year from t1.started_at) - extract(year from t2.birth_date) as age,
+       {{ updated_at() }}
 from {{ ref("trips_prep") }} t1
 left join {{ source("raw", "users") }} t2 on t1.user_id = t2.id
 {% if is_incremental() %}

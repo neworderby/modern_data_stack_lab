@@ -51,10 +51,12 @@ models:
     description: "Trips with additional user information"
     config:
       materialized: "incremental"
+      on_schema_change: "append_new_columns"  
   - name: "events_clean"
     description: "User events without duplicates"
     config:
       materialized: "incremental"
+      on_schema_change: "append_new_columns"  
   - name: "revenue_daily"
     description: "Summary daily revenue"
     config:
@@ -68,6 +70,7 @@ models:
     config:
       materialized: "incremental"
       incremental_strategy: "append"
+      on_schema_change: "append_new_columns"  
   - name: "companies"
     description: "Scooter satistics by company"
   - name: "companies_trips"

@@ -1,13 +1,13 @@
 select distinct
     user_id,
     "timestamp",
-    type_id
+    type_id,
+    {{ updated_at() }}
 from
     {{ source("raw", "events") }}
+where
 {% if is_incremental() %}
-    where
-        "timestamp" > (select max("timestamp") from {{ this }})
+    "timestamp" > (select max("timestamp") from {{ this }})
 {% else %}
-    where
-        "timestamp" < date '2023-08-01'
-{% endif %}    
+    "timestamp" < timestamp '2023-08-01'
+{% endif %}
