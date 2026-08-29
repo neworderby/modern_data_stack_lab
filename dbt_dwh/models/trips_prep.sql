@@ -12,5 +12,5 @@ select id
        , cast(price/100.00 as decimal(20,2)) as price_rub
        , extract(epoch from (finished_at - started_at)) as duration_s
        , case when price <> 0 and extract(epoch from (finished_at - started_at)) > 0 then true else false end is_free
-       , date(started_at) as date
+       , {{ date_in_moscow('started_at') }} as "date"
 from {{ source("raw", "trips") }}

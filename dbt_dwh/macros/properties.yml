@@ -3,3 +3,21 @@ version: 2
 macros:
   - name: "updated_at"
     description: "Columns which represents timestamp of the last update"
+  - name: "date_in_moscow"
+    description: "Convert timestamptz to date in Europe/Moscow time zone"
+    arguments:
+      - name: "ts_col"
+        type: "string"
+        description: "Timestamp column in timestamptz format"
+  - name: "trips_geom_stat"
+    description: "Count trips per hexagon of given size"
+    arguments:
+      - name: "trips_table"
+        type: "string"
+        description: "Trips table with geometry data"
+      - name: "geom_col"
+        type: "string"
+        description: "Column with geometry data"
+      - name: "grid"
+        type: "integer"
+        description: "Size of grid hexagon"      
