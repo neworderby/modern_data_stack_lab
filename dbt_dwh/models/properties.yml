@@ -51,7 +51,11 @@ models:
     description: "Trips with additional user information"
     config:
       materialized: "incremental"
-      on_schema_change: "append_new_columns"  
+      on_schema_change: "append_new_columns"
+      post-hook:
+        - "analyze raw.trips_users"
+        - sql: "vacuum raw.trips_users"
+          transaction: false
   - name: "events_clean"
     description: "User events without duplicates"
     config:
@@ -59,14 +63,6 @@ models:
       strategy: "merge"
       unique_key: [ "user_id", "timestamp", "type_id" ]
       on_schema_change: "append_new_columns"  
-  - name: "revenue_daily"
-    description: "Summary daily revenue"
-    config:
-      materialized: "incremental"
-      incremental_strategy: "merge"
-      unique_key: "date"
-      on_schema_change: "append_new_columns"
-      full_refresh: false
   - name: "trips_concurency"
     description: "Number of simultaneous rides in time"
     config:
