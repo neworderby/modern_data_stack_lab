@@ -5,11 +5,26 @@ seeds:
     description: "Scooter models info and statistics"
     config:
       delimiter: ","
+    columns:
+      - name: "hardware_id"
+        description: "Unique hardware identifier of the scooter"
+        data_tests:
+          - unique_not_null
   - name: "event_types"
-    description: "Meaningful types of mobile app events"    
+    description: "Meaningful types of mobile app events"
     config:
       delimiter: ","
+    columns:
+      - name: "type_id"
+        description: "Unique event type identifier"
+        data_tests:
+          - unique_not_null
   - name: "age_groups"
     description: "Age groups to split users for analysis"
     config:
       delimiter: ","
+    columns:
+      - name: "group"
+        description: "Unique age group name"
+        data_tests:
+          - unique_not_null
