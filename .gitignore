@@ -7,6 +7,9 @@ env.bak/
 venv.bak/
 .virtualenv/
 
+# === GitHub Actions self-hosted runner (бинарники + _work) ===
+/actions-runner/
+
 # === Переменные окружения / секреты / прочие файлы===
 .env
 .env.*

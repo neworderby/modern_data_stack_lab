@@ -2,7 +2,10 @@ version: 2
 
 seeds:
   - name: "scooters"
-    description: "Scooter models info and statistics"
+    description: >
+      Scooter models information and park statistics by model.
+      Includes information about the manufacturing company.
+      Data received from the service team and uploaded by Admin.
     config:
       delimiter: ","
     columns:
@@ -11,7 +14,7 @@ seeds:
         data_tests:
           - unique_not_null
   - name: "event_types"
-    description: "Meaningful types of mobile app events"
+    description: "{{ doc('event_types_description') }}"
     config:
       delimiter: ","
     columns:

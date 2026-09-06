@@ -447,8 +447,104 @@ psql -h localhost -p 5432 -U admin -d dwh -f sql/01_init_schemas.sql
 - Dockerfile'ы не содержат кредов
 - Fernet-ключ шифрует подключения в metadata-БД Airflow
 
-## Полезные ссылки
+## Документация dbt (docs generate / serve)
 
+dbt умеет генерировать интерактивную документацию по моделям, sources, seeds и тестам:
+
+```bash
+cd dbt_dwh
+dbt docs generate     # соберёт target/index.html и target/catalog.json
+dbt docs serve        # поднимет локальный сервер с документацией
+```
+
+### ⚠️ Конфликт портов с Airflow
+
+`dbt docs serve` по умолчанию использует порт **8080** — тот же, что и Airflow Webserver
+(см. таблицу сервисов выше). При запуске поверх работающего Airflow появится ошибка:
+
+```
+OSError: [Errno 48] Address already in use
+```
+
+Airflow менять не нужно — запустите документацию на другом порту:
+
+```bash
+dbt docs serve --port 8085
+```
+
+Документация будет доступна на `http://localhost:8085`.
+
+Занятые порты в этом проекте: **8080** (Airflow UI), **8081** (NocoDB), **5432/5433** (Postgres).
+Свободный порт можно проверить командой:
+
+```bash
+lsof -iTCP -sTCP:LISTEN -P -n | grep -E '80[0-9][0-9]'
+```
+
+### 🧟 «Полумёртвый» docs-сервер: порт занят, но документация не открывается
+
+Отдельная ловушка: если ранее `dbt docs serve` был запущен из **другого окружения**
+(например, глобальный dbt более новой версии) и остался висеть в фоне, он занимает порт,
+но **не отвечает на HTTP-запросы** — браузер бесконечно «грузит», curl рвёт соединение
+по таймауту. Такое случается, когда сервер ждёт артефакты формата новой версии dbt
+(parquet в `target/index/`), которых в проекте нет (артефакты старого формата — JSON).
+
+Диагностика:
+
+```bash
+# Кто занимает порт
+lsof -iTCP:8090 -sTCP:LISTEN -P -n
+
+# Что за процесс (смотрим cwd — у docs-сервера это dbt_dwh/target)
+ps -p <PID> -o pid,command
+lsof -p <PID> | grep target
+
+# Проверка, отвечает ли сервер на HTTP (000/exit 56 = не отвечает)
+curl -s -m 5 -o /dev/null -w "code=%{http_code}\n" http://127.0.0.1:8090/
+```
+
+Лечение — убить зависший процесс и перезапустить сервер нужной версией dbt:
+
+```bash
+kill <PID>
+dbt docs serve --port 8090
+```
+
+### ⚠️ Два dbt в разных окружениях
+
+В проекте dbt установлен в `.venv` (версия 1.9.6). Если в системе есть ещё один dbt
+(например, установленный глобально через pip/homebrew), команды могут запускаться
+разными версиями с разным поведением. Признак: предупреждения вида
+`dbt docs generate is not supported. Use dbt compile --write-catalog` — это вывод
+dbt 1.11+, а не 1.9.6.
+
+Перед работой проверяйте, какой dbt используется:
+
+```bash
+which dbt       # должно быть: .../modern_data_stack_lab/.venv/bin/dbt
+dbt --version
+```
+
+### Альтернатива без сервера
+
+Документация dbt — статический сайт, её можно открыть напрямую:
+
+```bash
+open dbt_dwh/target/index.html
+```
+
+Ограничение: при открытии через `file://` в некоторых браузерах могут не работать
+поиск и граф lineage (ограничения CORS), поэтому вариант с `--port` надёжнее.
+
+### Описание seeds через docs-блоки
+
+Подробные описания справочных таблиц (seeds) хранятся в docs-блоках в папке
+`dbt_dwh/macros/` (файлы `*.md` с блоками `{% docs <name> %} ... {% enddocs %}`)
+и подключаются в YAML через `{{ doc('<name>') }}`. Пример — сид `event_types`
+(маппинг `type_id` → название события), описание в
+`dbt_dwh/macros/event_types_docs.md`.
+
+## Полезные ссылки
 - [Техники модульного моделирования данных](https://www.getdbt.com/blog/modular-data-modeling-techniques) — статья dbt Labs о том, как дробить монолитный SQL на читаемые слои (staging / intermediate / marts), именование моделей и отладка «modelneck».
 - [Sources в dbt](https://docs.getdbt.com/docs/build/sources?version=2) — официальная документация по объявлению источников (`sources`), функции `{{ source() }}`, тестам и проверке freshness сырых таблиц.
 - [Seeds в dbt](https://docs.getdbt.com/docs/build/seeds) — загрузка CSV из папки `seeds/` в DWH через `dbt seed`: справочники и маппинги под `ref()`, когда seeds уместны (и когда нет), тесты/документация и `--full-refresh` при смене колонок.

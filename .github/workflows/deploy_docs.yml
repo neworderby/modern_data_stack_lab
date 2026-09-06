@@ -1,0 +1,42 @@
+name: Deploy dbt docs (Data Catalog) to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Self-hosted runner: воркфлоу выполняется локально на Mac,
+    # поэтому dbt подключается к локальному Docker Postgres (localhost:5432)
+    runs-on: self-hosted
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # profiles.yml закоммичен и читает креды из env_var().
+      # DWH_HOST по умолчанию localhost, DWH_DB_NAME — dwh (из профиля),
+      # поэтому достаточно задать пользователя и пароль от локальной базы
+      - name: Generate docs
+        working-directory: dbt_dwh
+        run: /Users/daniil/VSCode/modern_data_stack_lab/.venv/bin/dbt docs generate
+        env:
+          DWH_USER: ${{ secrets.DWH_USER || 'admin' }}
+          DWH_PASSWORD: ${{ secrets.DWH_PASSWORD || 'postgres' }}
+
+      - name: Prepare site files
+        run: |
+          mkdir -p site
+          cp dbt_dwh/target/index.html site/
+          cp dbt_dwh/target/manifest.json site/
+          cp dbt_dwh/target/catalog.json site/
+
+      - name: Commit site for GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site

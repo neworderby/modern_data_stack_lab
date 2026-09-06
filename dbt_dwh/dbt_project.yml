@@ -36,7 +36,17 @@ models:
   dbt_dwh:
     # Config indicated by + and applies to all files under models/example/
     +materialized: table
+    +on_schema_change: "append_new_columns"
+    +persist_docs:
+      relation: true
+      columns: true
     finance:
       +schema: "finance"
       +grants:
-        select: [ "finance" ]  
+        select: [ "finance" ]
+
+seeds:
+  dbt_dwh:
+    +persist_docs:
+      relation: true
+      columns: true         
