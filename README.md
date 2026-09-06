@@ -447,6 +447,61 @@ psql -h localhost -p 5432 -U admin -d dwh -f sql/01_init_schemas.sql
 - Dockerfile'ы не содержат кредов
 - Fernet-ключ шифрует подключения в metadata-БД Airflow
 
+## Каталог данных (GitHub Pages)
+
+Каталог dbt публикуется автоматически и доступен по ссылке:
+
+**https://neworderby.github.io/modern_data_stack_lab/**
+
+### Как работает автопубликация
+
+Пайплайн настроен в `.github/workflows/deploy_docs.yml`. Схема:
+
+```
+git push в main
+  → self-hosted runner на локальной машине принимает job
+  → dbt docs generate (подключение к локальному Docker Postgres, localhost:5432)
+  → артефакты (index.html, manifest.json, catalog.json)
+  → коммит в ветку gh-pages
+  → GitHub Pages публикует сайт (~1-2 минуты)
+```
+
+Ветка `gh-pages` создаётся и обновляется **автоматически** экшеном
+`peaceiris/actions-gh-pages` — вручную её трогать не нужно.
+
+### Self-hosted runner
+
+Воркфлоу выполняется на локальной машине (`runs-on: self-hosted`), поэтому dbt
+подключается к локальному Docker Postgres с кредами из `profiles.yml`
+(дефолты `admin`/`postgres` зашиты в воркфлоу через `||`).
+
+Runner установлен в `~/VSCode/modern_data_stack_lab/actions-runner/`
+(добавлен в `.gitignore`, в репозиторий не попадает).
+
+```bash
+# Запуск runner (должен работать во время деплоя)
+cd ~/VSCode/modern_data_stack_lab/actions-runner
+./run.sh          # ждать "Listening for Jobs", терминал не закрывать
+
+# Как фоновый сервис (переживает закрытие терминала и перезагрузку)
+sudo ./svc.sh install
+sudo ./svc.sh start
+```
+
+Важно: каталог обновляется только при работающем runner. Если машина выключена,
+job копится в очереди и выполнится при следующем запуске runner.
+
+### Настройка Pages (один раз)
+
+Settings → Pages → Build and deployment:
+- Source: **Deploy from a branch**
+- Branch: **gh-pages** / `/ (root)`
+
+### Локальный просмотр документации
+
+Локально каталог можно смотреть без пуша (см. раздел «Документация dbt» ниже):
+`dbt docs serve --port 8085` или `open dbt_dwh/target/index.html`.
+
 ## Документация dbt (docs generate / serve)
 
 dbt умеет генерировать интерактивную документацию по моделям, sources, seeds и тестам:
