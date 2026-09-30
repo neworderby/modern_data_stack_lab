@@ -535,6 +535,194 @@ Settings → Pages → Build and deployment:
 - Диаграмма архитектуры (mermaid) в README
 - Рефакторинг `s3_pipeline/filesystem_pipeline.py` (убрать копипасту из примера dlt)
 
+## Семантический слой (MetricFlow)
+
+Метрики считаются поверх модели `trips_users` через MetricFlow. Описание лежит в YAML, CLI `mf` читает уже собранный `target/manifest.json`, а не файлы напрямую.
+
+Команды ниже запускаются из `dbt_dwh/`, с активированным `.venv`.
+
+### Установка
+
+В задании пакет ставится через `uv add`. В этом репозитории зависимости живут в `requirements.txt`, поэтому пакет зафиксирован там и установлен в `.venv`:
+
+```text
+dbt-metricflow[dbt-postgres]==0.10.1
+```
+
+```bash
+pip install "dbt-metricflow[dbt-postgres]==0.10.1"
+mf --version    # mf, version 0.10.1
+```
+
+MetricFlow 0.10.1 требует `dbt-core>=1.10.4`, поэтому ядро поднялось с 1.9.6 до **1.10.23**. Адаптер `dbt-postgres` остался 1.9.0: `dbt --version` предупреждает, что плагин отстаёт от ядра. Для `mf` это не мешает.
+
+Профиль копировать из `~/.dbt/` не нужно. `dbt_dwh/profiles.yml` уже лежит в каталоге проекта, пароль читается через `env_var()`, а `DBT_PROFILES_DIR` в `.envrc` указывает на `dbt_dwh/`. MetricFlow 0.10.1 не смотрит в `~/.dbt/profiles.yml`, но файл в текущей папке он видит. В `.gitignore` этот `profiles.yml` не добавлять.
+
+### Time spine
+
+Семантический слой требует модель-календарь с гранулярностью день или мельче.
+
+`dbt_dwh/models/time_spine_daily.sql` строит даты через `dbt.date_spine` с 2023-06-01 по 2023-08-31 и отдаёт колонку `date_day`.
+
+Конфиг обязан быть в секции `models:`, файл `dbt_dwh/models/time_spine_daily.yml`:
+
+```yaml
+models:
+  - name: time_spine_daily
+    config:
+      materialized: "table"
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+```
+
+Если тот же блок положить в `seeds/properties.yml` под ключ `seeds:`, dbt видит SQL как модель и конфиг игнорирует. Тогда `dbt run` падает: `The semantic layer requires a time spine model with granularity DAY or smaller`.
+
+```bash
+dbt run -s time_spine_daily
+```
+
+### Семантическая модель и метрики
+
+Файл `dbt_dwh/models/metrics/trips_users_metrics.yml`.
+
+Семантическая модель `trips_users_metrics` смотрит на `ref('trips_users')`.
+
+| Блок | Что задано |
+|---|---|
+| entities | `trip` (primary, `id`), `user` (foreign, `user_id`), `scooter` (foreign, `scooter_hw_id`) |
+| dimensions | категориальные `sex`, `age`, `is_free`; временные `started_at` и `finished_date` с гранулярностью `day` |
+| defaults | `agg_time_dimension: started_at` |
+| measures | `revenue_sum` (sum `price_rub`), `users_count` (count_distinct `user_id`), `revenue_avg` (average `price_rub`), `free_trips_count` (sum_boolean `is_free`), `duration_m_median` (median `duration_s / 60.0`) |
+
+У мер `revenue_sum`, `users_count`, `free_trips_count` и `duration_m_median` стоит `create_metric: true`: MetricFlow сам заводит метрику с тем же именем. `revenue_avg` как мера метрику не создаёт, она объявлена отдельно и только по платным поездкам.
+
+Явные метрики:
+
+| Метрика | Тип | Смысл |
+|---|---|---|
+| `revenue_avg` | simple | средняя выручка, фильтр `Dimension('trip__is_free') = false` |
+| `revenue_cumsum` | cumulative | накопленная выручка по мере `revenue_sum`, тот же фильтр платных поездок |
+| `users_count_growth_mom` | derived | рост уникальных пользователей к прошлому месяцу: `(users_count - users_count_prev_month) * 100 / users_count_prev_month`, смещение `offset_window: 1 month` |
+
+Имя измерения в фильтре — `сущность__измерение`, поэтому `is_free` пишется как `trip__is_free`.
+
+### Проверка
+
+`mf` смотрит в `target/manifest.json`. После правки YAML сначала пересобрать манифест, иначе проверка читает старый файл и пишет `No metrics present in the model`.
+
+```bash
+dbt parse
+mf health-checks       # SELECT 1 к Postgres
+mf validate-configs    # семантика, модели, измерения, сущности, меры, метрики
+```
+
+Успешный прогон заканчивается `ERRORS: 0` на каждом шаге `validate-configs`.
+
+Дальше семантический слой смотрят командами `mf`, без SQL.
+
+Список метрик и доступных им размерностей:
+
+```bash
+mf list metrics
+```
+
+Сейчас их 7. Четыре появились из `create_metric: true` (`revenue_sum`, `users_count`, `free_trips_count`, `duration_m_median`), три объявлены в блоке `metrics:`. У каждой в коротком списке размерности `metric_time`, `trip__age`, `trip__finished_date`, `trip__is_free`, `trip__sex` и ещё одна (`trip__started_at`).
+
+Размерности одной метрики:
+
+```bash
+mf list dimensions --metrics revenue_sum
+```
+
+Это пять измерений семантической модели плюс служебная `metric_time`. Она смотрит на временное измерение по умолчанию, то есть на `started_at`:
+
+```text
+metric_time
+trip__age
+trip__finished_date
+trip__is_free
+trip__sex
+trip__started_at
+```
+
+Какие значения бывают у размерности:
+
+```bash
+mf list dimension-values --metrics revenue_sum --dimension trip__sex
+```
+
+### Запросы метрик
+
+Срезы считаются командой `mf query`. SQL писать не нужно: MetricFlow собирает запрос по метрике и группировкам.
+
+Суммарная выручка за всё время:
+
+```bash
+mf query --metrics revenue_sum
+```
+
+```text
+  revenue_sum
+-------------
+  2.33882e+07
+```
+
+`2.33882e+07` — это около 23.4 млн рублей. Ответ приходит не из готового кэша: CLI компилирует запрос и ходит в Postgres. На этом прогоне успешный запрос занял 0.21 с. Для разовой аналитики этого достаточно.
+
+Та же метрика по дням. Группировка и сортировка идут по `trip__started_at` — это измерение `started_at` сущности `trip`, оно же время по умолчанию (`metric_time`):
+
+```bash
+mf query --metrics revenue_sum --group-by trip__started_at --order trip__started_at
+```
+
+Несколько метрик в одном запросе перечисляют через запятую. Чтобы свернуть время не по дню, а по месяцу, к измерению дописывают гранулярность: `trip__started_at__month`.
+
+```bash
+mf query --metrics revenue_avg,revenue_sum,revenue_cumsum --group-by trip__started_at__month --order trip__started_at__month
+```
+
+`revenue_avg` здесь — средняя выручка только платных поездок, `revenue_sum` — сумма за месяц, `revenue_cumsum` — накопленная сумма от начала календаря time spine. Тот же суффикс работает и для других гранулярностей, которые есть у измерения (`__week`, `__quarter`, `__year`).
+
+Прирост уникальных пользователей к прошлому месяцу, отдельно по полу. В `--group-by` несколько размерностей перечисляют через запятую:
+
+```bash
+mf query --metrics users_count,users_count_growth_mom --group-by trip__started_at__month,trip__sex --order trip__started_at__month
+```
+
+`users_count` — число пользователей в этом месяце и поле, `users_count_growth_mom` — процент к тому же срезу месяц назад. У июня предыдущего месяца в time spine нет, поэтому прирост там `None`. Отдельная строка `trip__sex = None` — поездки без указанного пола.
+
+```text
+trip__started_at__month    trip__sex      users_count  users_count_growth_mom
+-------------------------  -----------  -------------  ------------------------
+2023-06-01T00:00:00        F                      834  None
+2023-06-01T00:00:00        M                      836  None
+2023-06-01T00:00:00        None                   201  None
+2023-07-01T00:00:00        F                      840  0.72
+2023-07-01T00:00:00        M                      836  0.00
+2023-07-01T00:00:00        None                   200  -0.50
+2023-08-01T00:00:00        F                      819  -1.80
+2023-08-01T00:00:00        M                      821  -1.68
+2023-08-01T00:00:00        None                   203  1.50
+```
+
+Число поездок и медианная длительность по возрасту. Метрики `trips_count` в проекте нет: ближайшая — `free_trips_count` (число бесплатных поездок, `sum_boolean` по `is_free`). С ней запрос выполняется:
+
+```bash
+mf query --metrics free_trips_count,duration_m_median --group-by trip__age --order trip__age
+```
+
+На выходе строка на каждый возраст: сколько бесплатных поездок и медиана длительности в минутах.
+
+Предупреждения, которые этот прогон не ломают:
+
+- предложение обновиться до MetricFlow 0.15.0 — курс зафиксирован на 0.10.1;
+- `database "dwh" has a collation version mismatch` — база создана с collation 2.36, а в ОС библиотека 2.31.
+
+На dbt 1.10 аргументы generic-тестов нужно класть во вложенный ключ `arguments:`. Плоская запись (`columns:` сразу под именем теста) на 1.9 была обязательной, на 1.10 даёт `MissingArgumentsPropertyInGenericTestDeprecation`.
+
 ## Документация dbt (docs generate / serve)
 
 dbt умеет генерировать интерактивную документацию по моделям, sources, seeds и тестам:
@@ -600,11 +788,11 @@ dbt docs serve --port 8090
 
 ### ⚠️ Два dbt в разных окружениях
 
-В проекте dbt установлен в `.venv` (версия 1.9.6). Если в системе есть ещё один dbt
+В проекте dbt установлен в `.venv` (версия 1.10.23, поднята вместе с MetricFlow). Если в системе есть ещё один dbt
 (например, установленный глобально через pip/homebrew), команды могут запускаться
 разными версиями с разным поведением. Признак: предупреждения вида
 `dbt docs generate is not supported. Use dbt compile --write-catalog` — это вывод
-dbt 1.11+, а не 1.9.6.
+dbt 1.11+, а не 1.10.23 из `.venv`.
 
 Перед работой проверяйте, какой dbt используется:
 
