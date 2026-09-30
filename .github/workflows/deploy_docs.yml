@@ -23,11 +23,11 @@ jobs:
       # поэтому достаточно задать пользователя и пароль от локальной базы
       - name: Install dependencies
         working-directory: dbt_dwh
-        run: ../.venv/bin/dbt deps
+        run: /Users/daniil/VSCode/modern_data_stack_lab/.venv/bin/dbt deps
 
       - name: Generate docs
         working-directory: dbt_dwh
-        run: ../.venv/bin/dbt docs generate
+        run: /Users/daniil/VSCode/modern_data_stack_lab/.venv/bin/dbt docs generate
         env:
           DWH_USER: ${{ secrets.DWH_USER || 'admin' }}
           DWH_PASSWORD: ${{ secrets.DWH_PASSWORD || 'postgres' }}
