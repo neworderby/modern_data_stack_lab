@@ -58,6 +58,12 @@ semantic_models:
         agg: "average"
         expr: "price_rub"
 
+      - name: "trips_count"
+        description: "Total number of trips"
+        agg: "count"
+        expr: "id"
+        create_metric: True
+
       - name: "free_trips_count"
         description: "Total number of free (unpaid) trips"
         agg: "sum_boolean"
@@ -99,4 +105,12 @@ metrics:
         - name: "users_count"
         - name: "users_count"
           offset_window: "1 month"
-          alias: "users_count_prev_month"                                                                    
+          alias: "users_count_prev_month"
+
+  - name: "trips_per_scooter"
+    label: "Trips per scooter"
+    description: ""
+    type: "ratio"
+    type_params:
+      numerator: "trips_count"
+      denominator: "scooters_count"                                                                              
