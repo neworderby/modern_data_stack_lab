@@ -21,6 +21,28 @@ models:
     - name: "updated_at"
       description: "When row was updated last time"
       data_type: "timestamptz"
+  - name: "revenue_user_monthly"
+    description: "Monthly total revenue by user"
+    data_tests:
+      - unique_key:
+          arguments:
+            columns: [ "user_id", "month" ]
+  - name: "revenue_monthly"
+    description: "Monthly total revenue"
+    data_tests:
+      - unique_key:
+          arguments:
+            columns: [ "month" ]
+  - name: "revenue_monthly_report"
+    description: "Monthly revenue report"
+    config:
+      materialized: "incremental"
+      strategy: "append"
+      on_schema_change: "append_new_columns"
+    data_tests:
+      - unique_key:
+          arguments:
+            columns: [ "month" ]                             
 
 exposures:
   - name: "financial_dashboard"
