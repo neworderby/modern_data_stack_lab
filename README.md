@@ -540,6 +540,12 @@ Settings → Pages → Build and deployment:
 `superset_financial_dashboard` (`depends_on: revenue_daily`), чтобы связь
 «модель → дашборд» была видна в каталоге данных.
 
+### Cube — по желанию, после MetricFlow и BI
+
+Не второй обязательный семантический слой. MetricFlow уже задаёт метрики и размерности внутри dbt и отвечает через `mf query`. Cube — отдельный сервис перед хранилищем: те же меры и размерности, но с API (SQL, REST) и коннекторами к BI. Имеет смысл, только если дашборд или чат должны спрашивать «выручка по компании» по имени метрики, а не копировать SQL.
+
+Один куб на `scooters` или `trips_users`, один запрос, без переноса всех метрик. Два полных каталога (MetricFlow и Cube) в этой лабе не вести.
+
 ### Другие идеи
 
 - pytest-тесты для Python-кода (DAG'и, пайплайны) + CI-джоба в GitHub Actions
@@ -606,9 +612,9 @@ dbt run -s time_spine_daily
 | entities | `trip` (primary, `id`), `user` (foreign, `user_id`), `scooter` (foreign, `scooter_hw_id`) |
 | dimensions | категориальные `sex`, `age`, `is_free`; временные `started_at` и `finished_date` с гранулярностью `day` |
 | defaults | `agg_time_dimension: started_at` |
-| measures | `revenue_sum` (sum `price_rub`), `users_count` (count_distinct `user_id`), `revenue_avg` (average `price_rub`), `free_trips_count` (sum_boolean `is_free`), `duration_m_median` (median `duration_s / 60.0`) |
+| measures | `revenue_sum` (sum `price_rub`), `users_count` (count_distinct `user_id`), `revenue_avg` (average `price_rub`), `trips_count` (count `id`), `free_trips_count` (sum_boolean `is_free`), `duration_m_median` (median `duration_s / 60.0`) |
 
-У мер `revenue_sum`, `users_count`, `free_trips_count` и `duration_m_median` стоит `create_metric: true`: MetricFlow сам заводит метрику с тем же именем. `revenue_avg` как мера метрику не создаёт, она объявлена отдельно и только по платным поездкам.
+У мер `revenue_sum`, `users_count`, `trips_count`, `free_trips_count` и `duration_m_median` стоит `create_metric: true`: MetricFlow сам заводит метрику с тем же именем. `revenue_avg` как мера метрику не создаёт, она объявлена отдельно и только по платным поездкам.
 
 Явные метрики:
 
@@ -617,8 +623,19 @@ dbt run -s time_spine_daily
 | `revenue_avg` | simple | средняя выручка, фильтр `Dimension('trip__is_free') = false` |
 | `revenue_cumsum` | cumulative | накопленная выручка по мере `revenue_sum`, тот же фильтр платных поездок |
 | `users_count_growth_mom` | derived | рост уникальных пользователей к прошлому месяцу: `(users_count - users_count_prev_month) * 100 / users_count_prev_month`, смещение `offset_window: 1 month` |
+| `trips_per_scooter` | ratio | `trips_count / scooters_count`. Числитель — все поездки, знаменатель — метрика из модели `scooters_metrics` |
 
 Имя измерения в фильтре — `сущность__измерение`, поэтому `is_free` пишется как `trip__is_free`.
+
+Вторая модель — справочник самокатов, файл `dbt_dwh/models/metrics/scooters_metrics.yml`. Она смотрит на сид `ref('scooters')`. В CSV нет даты, поэтому временная размерность `actual_at` задана выражением `date(now())` и указана в `defaults.agg_time_dimension`. Сущность `scooter` (primary, `hardware_id`) совпадает с foreign-сущностью `scooter` в `trips_users_metrics`, по ней модели соединяются.
+
+Меры справочника и колонки сида — разные имена. В CSV парк лежит в колонке `trips` (`sum(trips) as scooters` есть только в модели `companies`). В мере `expr` должен быть `trips`, а имя метрики — `scooters_count`. Иначе запрос падает с `column "scooters" does not exist`.
+
+| Мера | Агрегация | Колонка сида |
+|---|---|---|
+| `scooters_count` | sum | `trips` |
+| `models_count` | count_distinct | `model` |
+| `companies_count` | count_distinct | `company` |
 
 ### Проверка
 
@@ -640,7 +657,7 @@ mf validate-configs    # семантика, модели, измерения, �
 mf list metrics
 ```
 
-Сейчас их 7. Четыре появились из `create_metric: true` (`revenue_sum`, `users_count`, `free_trips_count`, `duration_m_median`), три объявлены в блоке `metrics:`. У каждой в коротком списке размерности `metric_time`, `trip__age`, `trip__finished_date`, `trip__is_free`, `trip__sex` и ещё одна (`trip__started_at`).
+Список длиннее семи: к метрикам поездок добавились `trips_count`, `trips_per_scooter` и три метрики справочника (`scooters_count`, `models_count`, `companies_count`). У метрик поездок в коротком списке размерности `metric_time`, `trip__age`, `trip__finished_date`, `trip__is_free`, `trip__sex` и ещё одна (`trip__started_at`). У справочника размерности идут с префиксом `scooter__`.
 
 Размерности одной метрики:
 
@@ -719,13 +736,82 @@ trip__started_at__month    trip__sex      users_count  users_count_growth_mom
 2023-08-01T00:00:00        None                   203  1.50
 ```
 
-Число поездок и медианная длительность по возрасту. Метрики `trips_count` в проекте нет: ближайшая — `free_trips_count` (число бесплатных поездок, `sum_boolean` по `is_free`). С ней запрос выполняется:
+Число бесплатных поездок и медианная длительность по возрасту. `free_trips_count` считает только поездки с `is_free`, это не все поездки. Все поездки — отдельная метрика `trips_count`.
 
 ```bash
 mf query --metrics free_trips_count,duration_m_median --group-by trip__age --order trip__age
 ```
 
 На выходе строка на каждый возраст: сколько бесплатных поездок и медиана длительности в минутах.
+
+### Справочник самокатов и связь двух моделей
+
+После правки YAML снова `dbt parse`, затем запросы. Размерности справочника называются `scooter__колонка`, потому что сущность в модели — `scooter`.
+
+Сколько самокатов в парке всего (`scooters_count` суммирует колонку `trips`):
+
+```bash
+mf query --metrics scooters_count
+```
+
+```text
+  scooters_count
+----------------
+            4479
+```
+
+Тот же парк и число моделей по производителю:
+
+```bash
+mf query --metrics scooters_count --group-by scooter__company
+mf query --metrics models_count --group-by scooter__company
+```
+
+```text
+scooter__company      scooters_count
+------------------  ----------------
+Spin                             466
+Segway-Ninebot                  1367
+Unagi                            466
+Xiaomi                          1295
+Skip                             445
+GoTrax                           440
+```
+
+Поездок на один самокат. Это ratio `trips_count / scooters_count`: поездки берутся из `trips_users`, парк из сида, соединение по `hardware_id`.
+
+```bash
+mf query --metrics trips_per_scooter --group-by scooter__company
+```
+
+```text
+scooter__company      trips_per_scooter
+------------------  -------------------
+GoTrax                          23.7136
+Segway-Ninebot                  23.5852
+Skip                            23.1213
+Spin                            23.4506
+Unagi                           24.0064
+Xiaomi                          23.8008
+```
+
+Поездки мужчин по модели, по убыванию числа поездок. `--where` принимает то же выражение `Dimension`, что и фильтр в YAML. Минус перед именем в `--order` — сортировка по убыванию.
+
+```bash
+mf query --metrics trips_count --group-by scooter__model --order -trips_count --where "{{Dimension('trip__sex')}}='M'"
+```
+
+Посмотреть SQL, который MetricFlow собрал, без выполнения выборки в виде таблицы:
+
+```bash
+mf query --metrics trips_per_scooter --group-by scooter__company --explain
+```
+
+Записать результат в CSV в текущей папке:
+
+```bash
+mf query --metrics trips_per_scooter --group-by scooter__company --csv data.csv
+```
 
 Предупреждения, которые этот прогон не ломают:
 
@@ -875,6 +961,11 @@ open dbt_dwh/target/index.html
 - [Пакет `dbt_project_evaluator`](https://dbt-labs.github.io/dbt-project-evaluator/latest/) — проверка проекта на best practices dbt Labs (моделирование, тесты, документация, структура, производительность). Запуск: `dbt build --select package:dbt_project_evaluator`.
 - [Пакет `dbt_meta_testing`](https://github.com/tnightengale/dbt-meta-testing) — требует покрытие тестами и описаниями через `required_tests` / `required_docs` в `dbt_project.yml`; проверка командой `dbt run-operation`.
 - [Пакет `dbt-codegen`](https://github.com/dbt-labs/dbt-codegen) — генерация YAML для sources и моделей и черновиков base-моделей из уже лежащих в базе таблиц.
+- [Семантические модели dbt](https://docs.getdbt.tech/docs/build/semantic-models) — из чего состоит модель MetricFlow: `model: ref()`, обязательный `defaults.agg_time_dimension`, сущности (`primary` / `foreign` как ключи соединения), измерения (`time` и `categorical`) и меры. Несколько семантических моделей могут ссылаться на один dbt-узел, если имена разные. Двойное подчёркивание в имени модели нельзя: `__` занято под `сущность__измерение`.
+- [FAQ семантического слоя dbt](https://docs.getdbt.tech/docs/use-dbt-semantic-layer/sl-faqs) — зачем слой: одни определения метрик, MetricFlow сам собирает SQL и соединения между моделями. Важная граница: API и коннекторы к BI (Tableau, Excel и др.) входят в платный Semantic Layer dbt Cloud (Starter и выше). В dbt Core, как в этой лабе, метрики задаются в YAML и запрашиваются локально через `mf`, без этого API.
+- [Команды MetricFlow](https://docs.getdbt.tech/docs/build/metricflow-commands) — справочник CLI: `list metrics`, `list dimensions`, `list dimension-values`, `query` (`--group-by`, `--where`, `--order`, `--explain`, `--csv`), `validate-configs`. После правки YAML нужен `dbt parse`: он обновляет `semantic_manifest.json`, модели заново не собирает. В dbt Cloud те же команды идут с префиксом `dbt sl`, не `mf`.
+- [Что такое семантический слой (Dimodelo)](https://www.dimodelo.com/blog/2023/what-is-a-semantic-layer-what-why-how-and-more/) — зачем он бизнесу: общий словарь сущностей и метрик, чтобы отчёты не спорили из-за разных формул. Четыре вида: копия данных (Power BI, Druid), виртуальный слой без копии (Cube, LookML, MetricFlow — на запрос генерируется SQL), гибрид и «мета»-описание в dbt. Прямое подключение слоя к сырым источникам в обход склада автор считает слабой идеей.
+- [Интеграция dbt и Cube](https://cube.dev/blog/introducing-dbt-integration-with-cube) — анонс октября 2023: пакет `cube_dbt` читает `manifest.json`, выбирает модели (например `models/marts/`) и разворачивает их в кубы с размерностями и типами колонок. Меры, соединения и предагрегации дописывают уже в Cube. Схема в статье та же, что в бэклоге: звезда собирается в dbt, метрики для BI и API отдаёт Cube.
 - [Markdown Guide: Basic Syntax](https://www.markdownguide.org/basic-syntax/) — шпаргалка по синтаксису Markdown: заголовки, списки, таблицы, код-блоки, ссылки; основа для README и технической документации (включая docs-блоки dbt).
 - [Free for Dev: Web Hosting](https://github.com/ripienaar/free-for-dev?tab=readme-ov-file#web-hosting) — большой каталог бесплатных сервисов для разработчиков (раздел web hosting): хостинг статики, PaaS, CDN и прочее — полезно, когда нужен бесплатный деплой пет-проекта.
 - [GitHub Marketplace: Actions](https://github.com/marketplace?type=actions) — каталог готовых экшенов для GitHub Actions (деплой, кэширование, линтеры, релизы); перед использованием стороннего экшена смотрят звёзды, версию (`@v4`) и документацию — как с `peaceiris/actions-gh-pages` в этом проекте.

@@ -26,4 +26,13 @@ macros:
     arguments:
       - name: "name"
         type: "string"
-        description: "Role name"         
+        description: "Role name"
+  - name: "trips_age_sex_report"
+    description: "Compute trips statistics in time by age and gender of user"
+    arguments:
+      - name: "trips_table"
+        type: "string"
+        description: "Table with source trips data enriched with user data"
+      - name: "granularity"
+        type: "string"
+        description: "Time granularity for report (daily/weekly/monthly)"                 
