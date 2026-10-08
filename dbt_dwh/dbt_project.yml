@@ -52,4 +52,6 @@ seeds:
   dbt_dwh:
     +persist_docs:
       relation: true
-      columns: true         
+      columns: true
+    ops:
+      +schema: "ops"  

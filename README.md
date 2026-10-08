@@ -820,6 +820,125 @@ mf query --metrics trips_per_scooter --group-by scooter__company --csv data.csv
 
 На dbt 1.10 аргументы generic-тестов нужно класть во вложенный ключ `arguments:`. Плоская запись (`columns:` сразу под именем теста) на 1.9 была обязательной, на 1.10 даёт `MissingArgumentsPropertyInGenericTestDeprecation`.
 
+## Схема `ops`, скаляр на компиляции и инкремент по дате
+
+Команды ниже запускаются из `dbt_dwh/`, с активированным `.venv`. В этом прогоне `DWH_SCHEMA=raw`, поэтому модели без своей схемы садятся в `raw`, а `finance` — в `raw_finance`.
+
+### Схема без префикса target
+
+Макрос `generate_schema_name` оставляет имя схемы как есть для `ops`. Остальные кастомные схемы получают префикс target: `finance` становится `raw_finance`.
+
+Сид регламентов ТО лежит в `dbt_dwh/seeds/ops/maintenance_policies.csv`, в `dbt_project.yml` у папки `ops` стоит `+schema: ops`.
+
+```bash
+dbt seed -s maintenance_policies
+```
+
+```text
+1 of 1 OK loaded seed file ops.maintenance_policies ................ [INSERT 5 in 0.09s]
+```
+
+Пять строк справочника:
+
+```bash
+dbt show --inline "select service_code, interval_km, interval_days from {{ ref('maintenance_policies') }} order by interval_km"
+```
+
+```text
+service_code      interval_km    interval_days
+--------------  -------------  ---------------
+TIRE_CHECK                200               14
+BRAKE_CHECK               300               30
+SAFETY_INSPECT            500               60
+BOLT_TIGHTEN              800               90
+BATTERY_HEALTH           1000              120
+```
+
+В манифесте рядом три разных схемы: `ops.maintenance_policies`, `raw.events_clean_v2`, `raw_finance.revenue_daily`.
+
+### Скаляр из запроса: `select_first_value`
+
+Макрос на этапе выполнения делает `run_query` и возвращает первое значение первой колонки. Его вызывают инкремент и тест ниже. Проверка на константе:
+
+```bash
+dbt show --inline "select {{ select_first_value('select 111') }} * 2 as result"
+```
+
+```text
+  result
+--------
+     222
+```
+
+Файл макроса должен содержать `{% macro select_first_value %}`. Пустой `.sql` dbt не регистрирует, и та же команда падает с `'select_first_value' is undefined`. Запись в `macros/properties.yml` макрос не создаёт.
+
+### Инкремент `events_clean_v2`
+
+`events_prep` — view: события `raw.events` плюс колонка `date` из `timestamp`. `events_clean_v2` — incremental merge по `user_id`, `timestamp`, `type_id`. Окно дат задаёт `incremental_date_condition`. Параметры по умолчанию лежат в `meta.incrementality` модели:
+
+```yaml
+incrementality:
+  start_date: "2023-06-01"
+  days_max: 60
+```
+
+`days_back_from_today` в мете не задан, макрос берёт 1: верхняя граница `current_date - 1 day`. Значения читает `get_meta_value` из графа dbt. Отдельной команды у него нет.
+
+Первая загрузка (`--full-refresh` или пустая таблица). Условие из `dbt compile -s events_clean_v2 --full-refresh`:
+
+```sql
+"date" >= date '2023-06-01'
+and "date" < date '2023-06-01' + interval '60 day'
+and "date" <= current_date - interval '1 day'
+```
+
+Сейчас в `raw.events_clean_v2` уже 322747 строк, даты с 2023-06-01 по 2023-08-30. В `raw.events` 338884 строк и тот же максимум, 2023-08-30. Следующий прогон без переменных берёт `max("date") + 1 day` и сливает пустое окно:
+
+```bash
+dbt run -s events_clean_v2
+```
+
+```text
+1 of 1 OK created sql incremental model raw.events_clean_v2  [MERGE 0 in 0.29s]
+```
+
+Один конкретный день переписывает переменная `date`. Она отменяет и мету, и продолжение с `max("date")`:
+
+```bash
+dbt run -s events_prep events_clean_v2 --vars '{date: "2023-08-30"}'
+```
+
+```text
+1 of 2 OK created sql view model raw.events_prep          [CREATE VIEW in 0.16s]
+2 of 2 OK created sql incremental model raw.events_clean_v2 [MERGE 3768 in 0.24s]
+```
+
+Своё окно, короче 60 дней из меты:
+
+```bash
+dbt compile -s events_clean_v2 --vars '{start_date: "2023-07-01", days_max: 7}'
+```
+
+```sql
+"date" >= date '2023-07-01'
+and "date" < date '2023-07-01' + interval '7 day'
+and "date" <= current_date - interval '1 day'
+```
+
+### Уникальность ключа из `meta`
+
+Тест `unique_key_meta` берёт список колонок из `meta.unique_key` модели, а не из аргументов теста. На `events_full` ключ — `user_id`, `timestamp`, `type_id`. В `meta.testing` стоит `days_max: 60`: проверяются строки с `date` не старше 60 дней от максимума в таблице. Колонка `date` для этого добавлена во view `events_full`.
+
+```bash
+dbt run -s events_full
+dbt test -s events_full
+```
+
+```text
+1 of 2 PASS events_full_is_complete           [PASS in 0.18s]
+2 of 2 PASS unique_key_meta_events_full_      [PASS in 0.34s]
+```
+
 ## Документация dbt (docs generate / serve)
 
 dbt умеет генерировать интерактивную документацию по моделям, sources, seeds и тестам:
