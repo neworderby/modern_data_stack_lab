@@ -31,3 +31,7 @@ seeds:
         description: "Unique age group name"
         data_tests:
           - unique_not_null
+  - name: "costs"
+    description: "Costs by month"
+    config:
+      delimiter: ","
