@@ -1,0 +1,34 @@
+{
+  "postgres_dwh": {
+    "conn_type": "postgres",
+    "host": "postgres-dwh",
+    "port": 5432,
+    "schema": "dwh",
+    "login": "admin",
+    "password": "postgres",
+    "description": "Connection to DWH Postgres (postgres-dwh)"
+  },
+  "airflow_db": {
+    "conn_type": "postgres",
+    "host": "postgres",
+    "port": 5432,
+    "schema": "airflow",
+    "login": "airflow",
+    "password": "airflow",
+    "description": "Airflow metadata database"
+  },
+  "nocodb_api": {
+    "conn_type": "http",
+    "host": "noco-db",
+    "port": 8080,
+    "login": "admin@example.com",
+    "password": "admin123",
+    "description": "NocoDB API connection"
+  },
+  "redis_default": {
+    "conn_type": "redis",
+    "host": "redis",
+    "port": 6379,
+    "description": "Redis connection"
+  }
+}

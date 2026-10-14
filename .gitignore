@@ -25,6 +25,7 @@ connections.json
 /raw/orders.csv
 target/*
 track/*
+course/*
 
 # === Python ===
 __pycache__/
