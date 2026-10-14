@@ -25,6 +25,7 @@ x-airflow-common:
     DESTINATION__POSTGRES__CREDENTIALS__USERNAME: ${DWH_USER}
     DESTINATION__POSTGRES__CREDENTIALS__PASSWORD: ${DWH_PASSWORD}
     DESTINATION__POSTGRES__CREDENTIALS__PORT: "5432"
+    DBT_PROFILES_DIR: /opt/dbt_dwh
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
@@ -32,6 +33,7 @@ x-airflow-common:
     - ./plugins:/opt/airflow/plugins
     - ./connections.json:/opt/airflow/connections.json
     - ./raw:/opt/raw
+    - ./dbt_dwh:/opt/dbt_dwh
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
