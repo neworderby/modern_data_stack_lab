@@ -520,17 +520,17 @@ Settings → Pages → Build and deployment:
 
 - [x] Короткий вход в README: данные, слои, как поднять стенд, ссылка на каталог. MetricFlow, порты и collation остаются ниже.
 - [x] Ключ инкремента в YAML — `incremental_strategy`, не `strategy` (`events_clean`, `revenue_daily`, `revenue_monthly_report`).
+- [x] Загрузка и dbt — два DAG. Ночной `dbt` вызывает `dbt deps && dbt run`, без `dbt clean` и без `dbt build`. Тесты остаются на ручном `dbt build` с хоста.
+- [x] Не стирать `target/` по расписанию: в ночной команде нет `dbt clean`.
+- [x] `trips_concurrency` без опечатки. В YAML нет описаний без SQL: `parking_stat_start` совпадает с файлом, `trips_age_daily_stat_daily` убран.
+- [x] Модели разложены по `models/stage`, `models/dds`, `models/mart` и пишутся в одноимённые схемы. Финансы остаются в `raw_finance`.
+- [x] Exposure `financial_dashboard` помечен как задел (`maturity: low`), не как готовый дашборд.
+- [x] `requirements.txt` содержит прямые зависимости, без `pip freeze`. `dbt-core` 1.10.23 и `dbt-postgres` 1.10.2.
 
 Осталось до показа:
 
-- [ ] Связать загрузку и dbt одним контуром: после `load_scooters_raw` идёт `dbt build`, не отдельный `dbt run`. `dbt clean` из ночного DAG уже убран.
-- [x] Не стирать `target/` по расписанию: DAG `dbt` вызывает `dbt deps && dbt run`, без `dbt clean`.
 - [ ] CI без пути `/Users/daniil/.../.venv`: на пуше гоняется `dbt build` (Postgres сервисом в GitHub-hosted runner). Публикация docs с self-hosted runner может остаться отдельной джобой.
-- [x] `trips_concurrency` без опечатки. В YAML нет описаний без SQL: `parking_stat_start` совпадает с файлом, `trips_age_daily_stat_daily` убран.
 - [ ] Оставить один событийный пайплайн: либо `events_clean`, либо `events_clean_v2`, второй не держать как параллельную историю.
-- [x] Модели разложены по `models/stage`, `models/dds`, `models/mart` и пишутся в одноимённые схемы. Финансы остаются в `raw_finance`.
-- [x] Exposure `financial_dashboard` помечен как задел (`maturity: low`), не как готовый дашборд.
-- [ ] Почистить `requirements.txt`: пакеты, без которых проект не ставится, без полного `pip freeze`. Выровнять `dbt-core` 1.10.23 и `dbt-postgres` 1.9.0.
 - [ ] Приложить один скрин каталога или ответ MetricFlow.
 
 ### BI-слой: Superset (в приоритете) или Redash
@@ -587,7 +587,7 @@ pip install "dbt-metricflow[dbt-postgres]==0.10.1"
 mf --version    # mf, version 0.10.1
 ```
 
-MetricFlow 0.10.1 требует `dbt-core>=1.10.4`, поэтому ядро поднялось с 1.9.6 до **1.10.23**. Адаптер `dbt-postgres` остался 1.9.0: `dbt --version` предупреждает, что плагин отстаёт от ядра. Для `mf` это не мешает.
+MetricFlow 0.10.1 требует `dbt-core>=1.10.4,<1.11`. В `requirements.txt` стоят `dbt-core==1.10.23` и `dbt-postgres==1.10.2`. На ядро 1.11 и новее этот MetricFlow не встанет.
 
 Профиль копировать из `~/.dbt/` не нужно. `dbt_dwh/profiles.yml` уже лежит в каталоге проекта, пароль читается через `env_var()`, а `DBT_PROFILES_DIR` в `.envrc` указывает на `dbt_dwh/`. MetricFlow 0.10.1 не смотрит в `~/.dbt/profiles.yml`, но файл в текущей папке он видит. В `.gitignore` этот `profiles.yml` не добавлять.
 
