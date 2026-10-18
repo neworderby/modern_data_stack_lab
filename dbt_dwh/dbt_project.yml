@@ -43,6 +43,12 @@ models:
     +persist_docs:
       relation: true
       columns: true
+    stage:
+      +schema: "stage"
+    dds:
+      +schema: "dds"
+    mart:
+      +schema: "mart"
     finance:
       +schema: "finance"
       +grants:

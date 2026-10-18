@@ -69,15 +69,11 @@ models:
     description: "Aggregation of daily trips statistics by user age"
     config:
       materialized: table
-  - name: "trips_age_daily_stat_daily"
-    description: "Aggregation of daily trips statistics by user age per day"
-    config:
-      materialized: table
   - name: "trips_geom"
     description: "Trips prepared for geometry analysis"
     config:
       materialized: "view"
-  - name: "parking_start_stat"
+  - name: "parking_stat_start"
     description: "Trip start parking statistics by 500 m hexagons"
   - name: "parking_finish_stat"
     description: "Trip finish parking statistics by 10 m hexagons"  
@@ -87,17 +83,17 @@ models:
       materialized: "incremental"
       on_schema_change: "append_new_columns"
       post-hook:
-        - "analyze raw.trips_users"
-        - sql: "vacuum raw.trips_users"
+        - "analyze dds.trips_users"
+        - sql: "vacuum dds.trips_users"
           transaction: false
   - name: "events_clean"
     description: "User events without duplicates"
     config:
       materialized: "incremental"
-      strategy: "merge"
+      incremental_strategy: "merge"
       unique_key: [ "user_id", "timestamp", "type_id" ]
       on_schema_change: "append_new_columns"  
-  - name: "trips_concurency"
+  - name: "trips_concurrency"
     description: "Number of simultaneous rides in time"
     config:
       materialized: "incremental"

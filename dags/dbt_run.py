@@ -23,7 +23,7 @@ def dbt_dag():
 
     @task.bash()
     def run():
-        return "cd /opt/dbt_dwh && dbt clean && dbt deps && dbt run"
+        return "cd /opt/dbt_dwh && dbt deps && dbt run"
 
     run()
 

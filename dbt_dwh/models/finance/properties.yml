@@ -5,7 +5,7 @@ models:
     description: "Summary daily revenue"
     config:
       materialized: "incremental"
-      strategy: "merge"
+      incremental_strategy: "merge"
       unique_key: [ "date" ]
       on_schema_change: "append_new_columns"
       full_refresh: false
@@ -37,7 +37,7 @@ models:
     description: "Monthly revenue report"
     config:
       materialized: "incremental"
-      strategy: "append"
+      incremental_strategy: "append"
       on_schema_change: "append_new_columns"
     data_tests:
       - unique_key:
@@ -48,8 +48,8 @@ exposures:
   - name: "financial_dashboard"
     label: "Financial Dashboard"
     type: "dashboard"
-    maturity: "high"
-    description: "Main financial dashboard on company with code financial metrics"
+    maturity: "low"
+    description: "Planned consumer of revenue_daily. No BI tool is connected yet, so this exposure only records the intended dependency."
     depends_on:
       - "ref('revenue_daily')"
     owner:

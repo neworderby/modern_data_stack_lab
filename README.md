@@ -1,8 +1,12 @@
 # Modern Data Stack Lab
 
-DWH-проект на базе **dbt**, **Apache Airflow**, **PostgreSQL** и **NocoDB**.
+Хранилище данных кикшеринга. Сырые поездки, пользователи и события лета 2023 лежат в публичном бакете. Airflow забирает их через DuckDB и dlt в Postgres, dbt собирает витрины, тесты и метрики.
 
-Курс для команды лежит в [course/README.md](course/README.md). Это черновик по уже сделанным коммитам: трек в коде ещё дописывается. Инфраструктуру ставить не нужно — Postgres, Airflow и NocoDB поднимаются из `compose.yaml`.
+Слои в этой базе такие. `raw` — как пришло из источника. `stage` — подготовка строк, `dds` — факты, `mart` — витрины. `raw_finance` — выручка, с контрактом колонок и отдельной ролью. `ops` — справочник обслуживания. Каталог с лайнейджем: **https://neworderby.github.io/modern_data_stack_lab/**
+
+Поднять стенд: скопировать `.env.example` и `connections.example.json`, вписать Fernet-ключ, затем `docker compose up -d --build`. Модели собрать из `dbt_dwh/`: `dbt build`. Раз в сутки DAG `dbt` гоняет `dbt run` в уже поднятом Airflow. Курс по этому репозиторию: [course/README.md](course/README.md).
+
+Порты, креды, MetricFlow и разбор команд — ниже. Для первого просмотра хватает этого блока и каталога.
 
 ## Установленные сервисы
 
@@ -510,14 +514,24 @@ Settings → Pages → Build and deployment:
 
 ### Витрина репозитория
 
-Чтобы проект можно было отправить ссылкой, без экскурсии по журналу. Делать по порядку, текущие модели не переписывать.
+Чтобы проект можно было открыть на собеседовании без экскурсии по журналу. Делать по порядку. Второй target, Slim CI, Dagster и Cube сюда не входят.
 
-- [ ] Короткий вход в README: какие данные, какие слои, одна команда `dbt build`, ссылка на каталог. MetricFlow, порты и collation остаются ниже.
-- [ ] `dbt build` в том же DAG, что и загрузка `raw` (`dags/load_scooters_raw.py`), чтобы контур не обрывался на сырье.
-- [ ] CI без личного пути `/Users/daniil/.../.venv/bin/dbt`: на пуше гоняется `dbt build`, не только публикация docs с self-hosted runner.
-- [ ] Выровнять версии: `dbt-core` 1.10.23 при `dbt-postgres` 1.9.0.
-- [ ] Разложить модели по папкам слоёв (`staging` / `marts`) и поправить кривые имена (`trips_concurency` и описания в YAML без SQL-файла).
-- [ ] Почистить `requirements.txt`: оставить пакеты, без которых проект не ставится, убрать следы полного `pip freeze` (Jupyter и прочее).
+Сделано:
+
+- [x] Короткий вход в README: данные, слои, как поднять стенд, ссылка на каталог. MetricFlow, порты и collation остаются ниже.
+- [x] Ключ инкремента в YAML — `incremental_strategy`, не `strategy` (`events_clean`, `revenue_daily`, `revenue_monthly_report`).
+
+Осталось до показа:
+
+- [ ] Связать загрузку и dbt одним контуром: после `load_scooters_raw` идёт `dbt build`, не отдельный `dbt run`. `dbt clean` из ночного DAG уже убран.
+- [x] Не стирать `target/` по расписанию: DAG `dbt` вызывает `dbt deps && dbt run`, без `dbt clean`.
+- [ ] CI без пути `/Users/daniil/.../.venv`: на пуше гоняется `dbt build` (Postgres сервисом в GitHub-hosted runner). Публикация docs с self-hosted runner может остаться отдельной джобой.
+- [x] `trips_concurrency` без опечатки. В YAML нет описаний без SQL: `parking_stat_start` совпадает с файлом, `trips_age_daily_stat_daily` убран.
+- [ ] Оставить один событийный пайплайн: либо `events_clean`, либо `events_clean_v2`, второй не держать как параллельную историю.
+- [x] Модели разложены по `models/stage`, `models/dds`, `models/mart` и пишутся в одноимённые схемы. Финансы остаются в `raw_finance`.
+- [x] Exposure `financial_dashboard` помечен как задел (`maturity: low`), не как готовый дашборд.
+- [ ] Почистить `requirements.txt`: пакеты, без которых проект не ставится, без полного `pip freeze`. Выровнять `dbt-core` 1.10.23 и `dbt-postgres` 1.9.0.
+- [ ] Приложить один скрин каталога или ответ MetricFlow.
 
 ### BI-слой: Superset (в приоритете) или Redash
 
@@ -856,7 +870,7 @@ BOLT_TIGHTEN              800               90
 BATTERY_HEALTH           1000              120
 ```
 
-В манифесте рядом три разных схемы: `ops.maintenance_policies`, `raw.events_clean_v2`, `raw_finance.revenue_daily`.
+В манифесте рядом три разных схемы: `ops.maintenance_policies`, `stage.events_clean_v2`, `raw_finance.revenue_daily`.
 
 ### Скаляр из запроса: `select_first_value`
 
@@ -894,14 +908,14 @@ and "date" < date '2023-06-01' + interval '60 day'
 and "date" <= current_date - interval '1 day'
 ```
 
-Сейчас в `raw.events_clean_v2` уже 322747 строк, даты с 2023-06-01 по 2023-08-30. В `raw.events` 338884 строк и тот же максимум, 2023-08-30. Следующий прогон без переменных берёт `max("date") + 1 day` и сливает пустое окно:
+После двух прогонов в `stage.events_clean_v2` 322747 строк, даты с 2023-06-01 по 2023-08-30: первый прогон берёт стартовое окно 60 дней, второй дописывает хвост. В `raw.events` 338884 строк и тот же максимум, 2023-08-30. Следующий прогон без переменных берёт `max("date") + 1 day` и сливает пустое окно:
 
 ```bash
 dbt run -s events_clean_v2
 ```
 
 ```text
-1 of 1 OK created sql incremental model raw.events_clean_v2  [MERGE 0 in 0.29s]
+1 of 1 OK created sql incremental model stage.events_clean_v2  [MERGE 0 in 0.29s]
 ```
 
 Один конкретный день переписывает переменная `date`. Она отменяет и мету, и продолжение с `max("date")`:
@@ -911,8 +925,8 @@ dbt run -s events_prep events_clean_v2 --vars '{date: "2023-08-30"}'
 ```
 
 ```text
-1 of 2 OK created sql view model raw.events_prep          [CREATE VIEW in 0.16s]
-2 of 2 OK created sql incremental model raw.events_clean_v2 [MERGE 3768 in 0.24s]
+1 of 2 OK created sql view model stage.events_prep          [CREATE VIEW in 0.16s]
+2 of 2 OK created sql incremental model stage.events_clean_v2 [MERGE 3768 in 0.24s]
 ```
 
 Своё окно, короче 60 дней из меты:
