@@ -1,9 +1,9 @@
 select distinct
     user_id,
-    "timestamp",
+    timestamp,
     type_id,
     {{ updated_at() }},
-    "date"
+    date
 from
     {{ ref("events_prep") }}
 where

@@ -1,7 +1,7 @@
 select
     user_id,
-    "timestamp",
+    timestamp,
     type_id,
-    date("timestamp") as "date"
+    date(timestamp) as date
 from
     {{ source("raw", "events") }}

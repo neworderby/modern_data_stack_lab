@@ -3,7 +3,7 @@ with monthly_stat_cte as (
       trips_per_month - the number of trips per month */
     select
         user_id,
-        date_trunc('month', "date") as "month",
+        date_trunc('month', date) as month,
         count(*) as trips_per_month
     from
         {{ ref('trips_prep') }}
@@ -11,6 +11,7 @@ with monthly_stat_cte as (
         1,
         2
 )
+
 /* User profiling based on the number of trips per month:
   rare - infrequent/occasional trips, no more than 2 trips per month */
 select

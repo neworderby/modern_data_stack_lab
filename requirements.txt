@@ -94,6 +94,7 @@ ruamel.yaml.clib==0.2.12
 six==1.17.0
 snowplow-tracker==1.1.0
 spinners==0.0.24
+sqlfluff-templater-dbt==3.4.2
 sqlglot==26.33.0
 sqlglotrs==0.7.3
 sqlparse==0.5.3
