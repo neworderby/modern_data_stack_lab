@@ -12,29 +12,35 @@ jobs:
     # Self-hosted runner: воркфлоу выполняется локально на Mac,
     # поэтому dbt подключается к локальному Docker Postgres (localhost:5432)
     runs-on: self-hosted
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      # Своё окружение в каталоге job, не личный .venv автора.
+      - name: Install Python dependencies
+        run: |
+          python3.12 -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
       # profiles.yml закоммичен и читает креды из env_var().
       # DWH_HOST по умолчанию localhost, DWH_DB_NAME — dwh (из профиля),
       # поэтому достаточно задать пользователя и пароль от локальной базы
-      - name: Install dependencies
+      - name: Install dbt packages
         working-directory: dbt_dwh
-        run: /Users/daniil/VSCode/modern_data_stack_lab/.venv/bin/dbt deps
+        run: ../.venv/bin/dbt deps
 
       - name: Run linter
         working-directory: dbt_dwh
-        run: /Users/daniil/VSCode/modern_data_stack_lab/.venv/bin/sqlfluff lint
+        run: ../.venv/bin/sqlfluff lint
         env:
           DWH_USER: ${{ secrets.DWH_USER || 'admin' }}
           DWH_PASSWORD: ${{ secrets.DWH_PASSWORD || 'postgres' }}
 
       - name: Generate docs
         working-directory: dbt_dwh
-        run: /Users/daniil/VSCode/modern_data_stack_lab/.venv/bin/dbt docs generate
+        run: ../.venv/bin/dbt docs generate
         env:
           DWH_USER: ${{ secrets.DWH_USER || 'admin' }}
           DWH_PASSWORD: ${{ secrets.DWH_PASSWORD || 'postgres' }}

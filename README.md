@@ -466,7 +466,7 @@ psql -h localhost -p 5432 -U admin -d dwh -f sql/01_init_schemas.sql
 ```
 git push в main
   → self-hosted runner на локальной машине принимает job
-  → dbt docs generate (подключение к локальному Docker Postgres, localhost:5432)
+  → sqlfluff lint и dbt docs generate (локальный Docker Postgres, localhost:5432)
   → артефакты (index.html, manifest.json, catalog.json)
   → коммит в ветку gh-pages
   → GitHub Pages публикует сайт (~1-2 минуты)
@@ -475,11 +475,16 @@ git push в main
 Ветка `gh-pages` создаётся и обновляется **автоматически** экшеном
 `peaceiris/actions-gh-pages` — вручную её трогать не нужно.
 
+Загрузка `raw` и `dbt build` в этот workflow не входят. Данные приезжают DAG
+`load_scooters_raw`, модели пересчитывает ночной DAG `dbt`.
+
 ### Self-hosted runner
 
 Воркфлоу выполняется на локальной машине (`runs-on: self-hosted`), поэтому dbt
 подключается к локальному Docker Postgres с кредами из `profiles.yml`
-(дефолты `admin`/`postgres` зашиты в воркфлоу через `||`).
+(дефолты `admin`/`postgres` зашиты в воркфлоу через `||`). Команды `dbt` и
+`sqlfluff` берутся из `.venv`, который job создаёт у себя при запуске, а не из
+каталога автора на диске.
 
 Runner установлен в `~/VSCode/modern_data_stack_lab/actions-runner/`
 (добавлен в `.gitignore`, в репозиторий не попадает).
@@ -526,10 +531,10 @@ Settings → Pages → Build and deployment:
 - [x] Модели разложены по `models/stage`, `models/dds`, `models/mart` и пишутся в одноимённые схемы. Финансы остаются в `raw_finance`.
 - [x] Exposure `financial_dashboard` помечен как задел (`maturity: low`), не как готовый дашборд.
 - [x] `requirements.txt` содержит прямые зависимости, без `pip freeze`. `dbt-core` 1.10.23 и `dbt-postgres` 1.10.2.
+- [x] GitHub Actions на пуше в `main` только линтит и публикует каталог с локальной базы. Загрузку `raw` и `dbt build` туда не переносим. Путь к личному `.venv` в workflow не зашит.
 
 Осталось до показа:
 
-- [ ] CI без пути `/Users/daniil/.../.venv`: на пуше гоняется `dbt build` (Postgres сервисом в GitHub-hosted runner). Публикация docs с self-hosted runner может остаться отдельной джобой.
 - [ ] Оставить один событийный пайплайн: либо `events_clean`, либо `events_clean_v2`, второй не держать как параллельную историю.
 - [ ] Приложить один скрин каталога или ответ MetricFlow.
 
